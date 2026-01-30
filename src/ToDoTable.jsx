@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useTodoContext } from './context';
 
 const ToDoTable = () => {
 
     const {TodosList, TodosTable, getCurrentDate, userSettings, setUserSettings, reverseTable, handleCheck} = useTodoContext();
+    const [editingDate, setEditingDate] = useState(null);
 
     const changeSettings = (name) =>{
         setUserSettings({...userSettings, [name]: !userSettings[name]});
@@ -43,6 +45,11 @@ const ToDoTable = () => {
                             <p>Total Completed</p>
                         </th>
 
+                        <th>
+                            <span className="icons"><i className="fa-solid fa-pen-to-square"></i></span>
+                            <p>Edit</p>
+                        </th>
+
                     </tr>
 
                 </thead>
@@ -65,19 +72,38 @@ const ToDoTable = () => {
                                 // console.log("Item : Index: ",item,index);
 
                                 const check = TodosTable[date].includes(item.title);
+                                const isEditable = getCurrentDate() === date || editingDate === date;
                                 
-                                if(getCurrentDate() !== date){
+                                if (!isEditable) {
                                     if (check) { return <td key={index}> <i className="fa-solid fa-square-check done"></i> </td> }
                                     else { return <td key={index}> <i className="fa-solid fa-square-xmark notdone"></i> </td> }
                                 }
 
-                                else{
-                                    return <td key={index}> <input type="checkbox" onClick={handleCheck} name={date + '-' + item.title} defaultChecked={check}/></td>
-                                }
-
+                                return (
+                                    <td key={index}>
+                                        <input
+                                            type="checkbox"
+                                            onChange={handleCheck}
+                                            name={date + '-' + item.title}
+                                            checked={check}
+                                        />
+                                    </td>
+                                );
                                 })}
 
                                 <td>{TodosTable[date].length} / {TodosList.length}</td>
+
+                                <td>
+                                    <button
+                                        type="button"
+                                        className={`edit-row-btn ${editingDate === date ? 'editing' : ''}`}
+                                        onClick={() => setEditingDate((prev) => (prev === date ? null : date))}
+                                        title={editingDate === date ? 'Save' : 'Edit this row'}
+                                    >
+                                        <i className={editingDate === date ? 'fa-solid fa-check' : 'fa-solid fa-pen-to-square'}></i>
+                                        {editingDate === date ? ' Save' : ' Edit'}
+                                    </button>
+                                </td>
 
                             </tr>
                         )

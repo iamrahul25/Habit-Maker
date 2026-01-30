@@ -247,6 +247,35 @@
 }
 
 
+/* Edit row button in table */
+.edit-row-btn {
+    padding: 6px 12px;
+    border: 1px solid #24263A;
+    border-radius: 6px;
+    background: #fff;
+    color: #24263A;
+    font-size: 13px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: 0.15s ease;
+}
+.edit-row-btn:hover {
+    background: #24263A;
+    color: #fff;
+}
+.edit-row-btn.editing {
+    background: #24263A;
+    color: #fff;
+    border-color: #24263A;
+}
+.edit-row-btn.editing:hover {
+    background: #1a1c2e;
+    color: #fff;
+}
+
 .table_setting{
     border: 2px solid #ccc;
     max-width: 350px;
