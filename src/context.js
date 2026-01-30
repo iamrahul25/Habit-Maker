@@ -1,4 +1,11 @@
-import {createContext, useContext, useState, useEffect } from "react";
+import {createContext, useContext, useState, useEffect, useCallback } from "react";
+
+//Firebase Authentication
+import { auth, signOut } from './firebase';
+
+//Firebase Firestore
+import {db} from './firebase'
+import {collection, getDocs, addDoc, updateDoc, query, where, deleteDoc, doc} from 'firebase/firestore';
 
 export const TodoContext = createContext({});
 
@@ -8,39 +15,32 @@ export const useTodoContext = () => {
 
 export const TodoContextProvider = ({children}) => {
 
-    // const list_dummy = [
-    //     { "logoclass": "fa-solid fa-person-running", "title": "Running", "color": "1" },
-    //     { "logoclass": "fa-solid fa-hand-fist", "title": "Boxing", "color": "100" },
-    //     { "logoclass": "fa-solid fa-person-biking", "title": "Cycling", "color": "150" },
-    //     { "logoclass": "fa-solid fa-code", "title": "CodeChef", "color": "20" },
-    //     { "logoclass": "fa-solid fa-keyboard", "title": "Typing", "color": "50" },
-    // ];
+    //Firebase Firestore
+    const habitsCollectionRef = collection(db, 'habits');
 
-    // const table_dummy = {
-    //     '16/8/2022' : ['Cycling', 'Running', 'Boxing'],
-    //     '17/8/2022' : ['Cycling', 'Running', 'CodeChef','Typing'],
-	// 	'18/8/2022' : ['Cycling', 'Running', 'CodeChef'],
-	// 	'19/8/2022' : ['Cycling', 'CodeChef'],
-    // };
+    //Authentication State
+    const [showAuthPages, setShowAuthPages] = useState({
+        loginPage: 1,
+        signupPage: 0,
+    });
+    const [userEmailID, setUserEmailID] = useState("");
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [authLoading, setAuthLoading] = useState(true); // Track if auth state is being checked
 
 	const [displayAddItem, setDisplayAddItem] = useState(false);
     const [displayDeleteItem, setDisplayDeleteItem] = useState(false);
 
 	//Todo's List-----------------------------------------------------
-	const initialList = JSON.parse(localStorage.getItem('ToDosList')) || [];
+	const initialList = [];
     const [TodosList, setTodosList] = useState(initialList);
-	// console.log("TodosList LocalStorage: ", TodosList);
 
 	//Todo's Table-----------------------------------------------------
-	const initialTable = JSON.parse(localStorage.getItem('ToDosTable')) || {};
+	const initialTable = {};
     const [TodosTable, setTodosTable] = useState(initialTable);
-	// console.log("TodosTable LocalStorage: ", TodosTable);
-
 
 	//User's Settings--------1)Show Border 2)ShowTitle 3)Reverse-----------
-	const initialSettings = JSON.parse(localStorage.getItem('ToDosSettings')) || {showBorder: true, showTitles: true, reverse: false};
+	const initialSettings = {showBorder: true, showTitles: true, reverse: false};
 	const [userSettings, setUserSettings] = useState(initialSettings);
-	// console.log("UserSettings LocalStorage: ", userSettings);
 
 
     const getCurrentDate = () => {
@@ -50,20 +50,108 @@ export const TodoContextProvider = ({children}) => {
         return date;
     }
 
-	//For Saving ToDo'sList Item to LocalStorage
-	useEffect(() => {
-		localStorage.setItem('ToDosList', JSON.stringify(TodosList));
-	}, [TodosList]);
+	//CRUD - Read, Write, Update Delete Operations in Database---------------------	
+	const handleSaveOrUpdateData = useCallback(async () => {
+		if (!userEmailID) return;
+		
+		try{
+			const userQuery = query(habitsCollectionRef, where("email", "==", userEmailID));
+			const queryData = await getDocs(userQuery);
 
-	//Saving ToDo'sTable to LocalStorage 
-	useEffect(() => {
-		localStorage.setItem('ToDosTable', JSON.stringify(TodosTable));
-	}, [TodosTable]);
+			const userData = {
+				TodosList: TodosList,
+				TodosTable: TodosTable,
+				userSettings: userSettings,
+				email: userEmailID
+			};
 
-	//Saving User's Settings to LocalStorage
+			//If Data Exists, Update Data
+			if(!queryData.empty){
+				const userDoc = queryData.docs[0];
+				await updateDoc(userDoc.ref, userData);
+				console.log("Data Updated Successfully!");
+			}
+			
+			//If Data Does Not Exist, Save Data
+			else{
+				await addDoc(habitsCollectionRef, userData);
+				console.log("Data Saved Successfully!");
+			}
+
+		}
+		catch(error){
+			console.error("Error Saving/Updating Data!", error.message);
+		}
+	}, [userEmailID, TodosList, TodosTable, userSettings])
+
+	const handleFetchData = async (emailID) => {
+		try{
+			const userQuery = query(habitsCollectionRef, where("email", "==", emailID));
+			const queryData = await getDocs(userQuery);
+			if(!queryData.empty){
+				const userDoc = queryData.docs[0];
+				const userData = userDoc.data();
+				console.log("User Data Fetched Successfully");
+
+				//Update state with Data from Database
+				if (userData.TodosList) setTodosList(userData.TodosList);
+				if (userData.TodosTable) setTodosTable(userData.TodosTable);
+				if (userData.userSettings) setUserSettings(userData.userSettings);
+			}
+			else{
+				console.log("No User Data Found!");
+			}
+
+		}
+		catch(error){
+			console.error("Error Fetching Data!", error.message);
+		}
+	}
+
+	const handleLogout = async () => {
+		try {
+			await signOut(auth);
+			setUserEmailID("");
+			setIsAuthenticated(false);
+			setShowAuthPages({ loginPage: 1, signupPage: 0 });
+			setTodosList([]);
+			setTodosTable({});
+			setUserSettings({showBorder: true, showTitles: true, reverse: false});
+			console.log("Logged out successfully!");
+		} catch (error) {
+			console.error("Error logging out:", error.message);
+		}
+	}
+
+	//Check if User is Authenticated
 	useEffect(() => {
-		localStorage.setItem('ToDosSettings', JSON.stringify(userSettings));
-	} , [userSettings]);
+		const unsubscribe = auth.onAuthStateChanged(async(user) => {
+			if (user) {
+				console.log("User Login Data Present!");
+				setUserEmailID(user.email);
+				setIsAuthenticated(true);
+				setShowAuthPages({ loginPage: 0, signupPage: 0 });
+
+				//Fetch user data from Firestore
+				await handleFetchData(user.email);
+			} else {
+				setShowAuthPages({ loginPage: 1, signupPage: 0 });
+				setIsAuthenticated(false);
+				console.log("No User Login Data Present!");
+			}
+			// Auth state check is complete
+			setAuthLoading(false);
+		});
+
+		return () => unsubscribe();
+	}, []);
+
+	//Save data to Firestore whenever TodosList, TodosTable, or userSettings changes
+	useEffect(() => {
+		if (isAuthenticated && userEmailID) {
+			handleSaveOrUpdateData();
+		}
+	}, [isAuthenticated, userEmailID, handleSaveOrUpdateData]);
 
 	  
 
@@ -162,6 +250,15 @@ export const TodoContextProvider = ({children}) => {
 		clearAll,
 
 		handleCheck,
+
+		//Authentication
+		showAuthPages,
+		setShowAuthPages,
+		userEmailID,
+		setUserEmailID,
+		isAuthenticated,
+		authLoading,
+		handleLogout,
     };
 
     return <TodoContext.Provider value={value}> {children} </TodoContext.Provider>;

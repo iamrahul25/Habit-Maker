@@ -1,0 +1,117 @@
+import { useRef } from 'react';
+import styles from '../CSS/SignupPage.module.css';
+
+//React Icons (Library)
+import { MdEmail } from "react-icons/md";
+import { RiLockPasswordFill } from "react-icons/ri";
+import { RiLockPasswordLine } from "react-icons/ri";
+import { FaUser } from "react-icons/fa";
+
+//Firebase 
+import { auth, createUserWithEmailAndPassword, sendEmailVerification } from '../firebase';
+
+//Context API
+import { useTodoContext } from '../context';
+
+function SignupPage() {
+
+    //Context API
+    const { setShowAuthPages } = useTodoContext();
+
+    //useRef
+    const emailRef = useRef();
+    const passwordRef = useRef();
+    const confirmPasswordRef = useRef();
+
+    const handleNavigateLoginPage = () => {
+        setShowAuthPages({ loginPage: 1, signupPage: 0 });
+    }
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        const email = emailRef.current.value;
+        const password = passwordRef.current.value;
+        const confirmPassword = confirmPasswordRef.current.value;
+
+        if(password!==confirmPassword){
+            window.alert("Password and Confirm Password do not match!");
+            return;
+        }
+        else{
+
+            try{
+                //User Registration - Firebase
+                await createUserWithEmailAndPassword(auth, email, password);
+                console.log('User registered successfully!');
+
+                //Sending Email Verification
+                await sendEmailVerification(auth.currentUser);
+                window.alert('📧 Verification email sent! Please check your email and verify your account.');
+
+                // Navigate to login page
+                setShowAuthPages({ loginPage: 1, signupPage: 0 });
+            }
+            catch(error){
+                // Handle Errors here.
+                if (error.code === 'auth/email-already-in-use') {
+                    window.alert("Email ID is Already Registered!");
+                }
+                else if (error.code === 'auth/invalid-email') {
+                    window.alert("Invalid Email ID!");
+                }
+                else if (error.code === 'auth/weak-password') {
+                    window.alert("Password is too weak!");
+                }
+                else {
+                    console.error(error.message);
+                    window.alert("Error: " + error.message);
+                }
+            }
+        }
+
+    }
+
+    return (
+        <div className={styles.signup_page_div}>
+            <div className={styles.card_container}>
+                <div className={styles.header}>
+                    <div className={styles.icon_circle}>
+                        <FaUser />
+                    </div>
+                    <h2 className={styles.heading}>Create Account</h2>
+                    <p className={styles.para}>
+                        Sign up to get started
+                    </p>
+                </div>
+
+                <form onSubmit={handleSubmit}>
+
+                <div className={styles.input_div}>
+                    <MdEmail />
+                    <input required ref={emailRef} className={styles.input_field} placeholder="Email Address" type="email" name="" id="email" />
+                </div>
+
+                <div className={styles.input_div}>
+                    <RiLockPasswordFill />
+                    <input required ref={passwordRef} className={styles.input_field} placeholder="Password" type="password" name="" id="password" />
+                </div>
+
+                <div className={styles.input_div}>
+                    <RiLockPasswordLine />
+                    <input required ref={confirmPasswordRef} className={styles.input_field} placeholder="Confirm Password" type="password" name="" id="confirm_password" />
+                </div>
+
+                <button type='submit' className={styles.button}>Sign Up </button>
+
+                </form>
+
+                <p className={`${styles.para} ${styles.para2}`}>
+                    Already have an account? <span onClick={handleNavigateLoginPage} className={styles.anchor_tag}>Login</span>
+                </p>
+            </div>
+        </div>
+    );
+}
+
+export default SignupPage;
