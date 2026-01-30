@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTodoContext } from './context';
-import './App.css';
+import './CSS/App.css';
 
 import ToDoBox from './ToDoBox';
 import AddItem from './AddItem';
