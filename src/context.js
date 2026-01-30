@@ -45,9 +45,10 @@ export const TodoContextProvider = ({children}) => {
 
     const getCurrentDate = () => {
         const D = new Date();
-        const date = `${D.getDate()}/${D.getMonth()+1}/${D.getFullYear()}`;
-        // console.log("Date: ",date);
-        return date;
+        const year = D.getFullYear();
+        const month = String(D.getMonth() + 1).padStart(2, '0');
+        const day = String(D.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 
 	//CRUD - Read, Write, Update Delete Operations in Database---------------------	
@@ -172,32 +173,20 @@ export const TodoContextProvider = ({children}) => {
     },[TodosTable]);
 
 
-	const handleCheck = (e) =>{
+	const handleCheck = (e) => {
 		const name = e.target.name;
-		// console.log("Name of CheckBox: ",name);
-	
-		const [date, item] = name.split('-');
-		// console.log("Date: ",date," Item: ",item);
-	
+		// Date is YYYY-MM-DD (first 10 chars), item is the rest after "date-"
+		const date = name.slice(0, 10);
+		const item = name.slice(11);
 
-		let array = TodosTable[date];
-		// console.log("Array: ",array);
+		const array = TodosTable[date];
+		if (!array) return;
 
-		//Check if item is already in the array
-		if(array.includes(item)){
-			array.pop(item);
-		}
+		const newArray = array.includes(item)
+			? array.filter((x) => x !== item)
+			: [...array, item];
 
-		else{
-			//Add item to array
-			array.push(item);
-		}
-
-		//Updating Table
-		setTodosTable((TodosTable)=>{
-			return {...TodosTable, [date]: array};
-		});
-	
+		setTodosTable((prev) => ({ ...prev, [date]: newArray }));
 	}
 
 

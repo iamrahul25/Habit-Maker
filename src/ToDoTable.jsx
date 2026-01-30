@@ -50,7 +50,7 @@ const ToDoTable = () => {
 
                 <tbody>
 
-                    {Object.keys(TodosTable).map((date,index)=>{
+                    {(userSettings.reverse ? Object.keys(TodosTable).sort().reverse() : Object.keys(TodosTable).sort()).map((date,index)=>{
 
                         // console.log("Key: index: ",date,index);
                         // console.log("Value::: ",Table[date]);
